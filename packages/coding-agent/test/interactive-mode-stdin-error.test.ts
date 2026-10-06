@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { InteractiveMode } from "../../../src/modes/interactive/interactive-mode.ts";
+import { InteractiveMode } from "../src/modes/interactive/interactive-mode.ts";
 
 // Regression for https://github.com/earendil-works/pi/issues/10272
 //
@@ -74,5 +74,16 @@ describe("InteractiveMode stdin dead-terminal errors (#10272)", () => {
 		expect(process.stdin.listenerCount("error")).toBe(baseline + 1);
 		interactiveModePrototype.unregisterSignalHandlers.call(context);
 		expect(process.stdin.listenerCount("error")).toBe(baseline);
+	});
+
+	test("re-registering keeps exactly one stdin error listener", () => {
+		context = makeContext();
+		const baseline = process.stdin.listenerCount("error");
+		interactiveModePrototype.registerSignalHandlers.call(context);
+		interactiveModePrototype.registerSignalHandlers.call(context);
+
+		expect(process.stdin.listenerCount("error")).toBe(baseline + 1);
+		expect(() => process.stdin.emit("error", stdinError("EIO"))).toThrow(ProcessExitError);
+		expect(context.emergencyTerminalExit).toHaveBeenCalledTimes(1);
 	});
 });
